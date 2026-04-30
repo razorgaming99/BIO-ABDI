@@ -52,6 +52,25 @@
                 <a href="about.html" class="hero-btn">Learn More →</a>
             </div>
         </section>
+        <section class="page-section" id="comments-section">
+            <h2 class="section-title">Komentar</h2>
+
+            <div class="comment-form-wrap">
+                <div class="form-row">
+                    <input type="text" id="cmt-name" placeholder="Nama kamu" maxlength="50" class="form-input" />
+                    <input type="text" id="cmt-email" placeholder="Email (opsional)" maxlength="80" class="form-input" />
+                </div>
+                <textarea id="cmt-body" placeholder="Tulis komentar..." class="form-textarea"></textarea>
+                <p id="cmt-err" style="display:none;color:#e57373;font-size:13px;margin-top:6px;">Nama dan komentar wajib diisi.</p>
+                <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+                    <button class="btn-submit" onclick="postComment()">Kirim Komentar</button>
+                </div>
+            </div>
+
+            <p id="cmt-count" style="font-size:13px;color:var(--muted);margin:24px 0 12px;"></p>
+            <div id="cmt-list"></div>
+        </section>
+
     </main>
 
 </div>
@@ -62,5 +81,94 @@
 </button>
 
 <script src="script.js"></script>
+<script>
+const CMT_KEY = 'abdi_comments_v1';
+
+function cLoad() {
+    try { return JSON.parse(localStorage.getItem(CMT_KEY)) || []; } catch(e) { return []; }
+}
+function cSave(d) { localStorage.setItem(CMT_KEY, JSON.stringify(d)); }
+
+function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function initials(name) {
+    return name.trim().split(' ').map(w => w[0]||'').join('').toUpperCase().slice(0,2) || '?';
+}
+
+function timeAgo(ts) {
+    const s = Math.floor((Date.now()-ts)/1000);
+    if(s<60) return 'baru saja';
+    const m=Math.floor(s/60); if(m<60) return m+'m lalu';
+    const h=Math.floor(m/60); if(h<24) return h+'j lalu';
+    const d=Math.floor(h/24); if(d<30) return d+'h lalu';
+    return new Date(ts).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});
+}
+
+function renderComments() {
+    const comments = cLoad();
+    const list = document.getElementById('cmt-list');
+    const label = document.getElementById('cmt-count');
+    if (!list) return;
+    label.textContent = comments.length + ' komentar';
+
+    if (!comments.length) {
+        list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);border:1px dashed var(--border);border-radius:10px;font-size:14px;">Belum ada komentar. Jadilah yang pertama!</div>';
+        return;
+    }
+
+    list.innerHTML = comments.slice().reverse().map((c, ri) => {
+        const i = comments.length - 1 - ri;
+        return `<div style="background:var(--darker);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+                <div style="width:38px;height:38px;border-radius:50%;background:var(--mid);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--accent);flex-shrink:0;">${esc(initials(c.name))}</div>
+                <div style="flex:1;">
+                    <span style="font-size:14px;font-weight:600;color:var(--light);">${esc(c.name)}</span>
+                    ${c.email ? `<span style="font-size:12px;color:var(--muted);margin-left:8px;">${esc(c.email)}</span>` : ''}
+                </div>
+                <span style="font-size:12px;color:var(--muted);">${timeAgo(c.ts)}</span>
+            </div>
+            <p style="font-size:14px;color:var(--light);line-height:1.65;margin:0 0 10px;">${esc(c.body)}</p>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <button onclick="likeCmt(${i})" style="background:transparent;border:1px solid var(--border);border-radius:6px;padding:4px 12px;color:var(--muted);font-size:12px;cursor:pointer;">👍 Suka</button>
+                <span style="font-size:12px;color:var(--muted);">${c.likes > 0 ? c.likes+' suka' : ''}</span>
+                <button onclick="delCmt(${i})" style="margin-left:auto;background:transparent;border:1px solid rgba(229,115,115,0.3);border-radius:6px;padding:4px 12px;color:#e57373;font-size:12px;cursor:pointer;">Hapus</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function postComment() {
+    const name = document.getElementById('cmt-name').value.trim();
+    const email = document.getElementById('cmt-email').value.trim();
+    const body = document.getElementById('cmt-body').value.trim();
+    const errEl = document.getElementById('cmt-err');
+    if (!name || !body) { errEl.style.display='block'; return; }
+    errEl.style.display='none';
+    const comments = cLoad();
+    comments.push({ name, email, body, ts: Date.now(), likes: 0 });
+    cSave(comments);
+    document.getElementById('cmt-name').value = '';
+    document.getElementById('cmt-email').value = '';
+    document.getElementById('cmt-body').value = '';
+    renderComments();
+}
+
+function likeCmt(i) {
+    const c = cLoad();
+    if (c[i]) { c[i].likes = (c[i].likes||0)+1; cSave(c); renderComments(); }
+}
+
+function delCmt(i) {
+    const c = cLoad();
+    c.splice(i, 1);
+    cSave(c);
+    renderComments();
+}
+
+renderComments();
+setInterval(renderComments, 30000);
+</script>
 </body>
 </html>
